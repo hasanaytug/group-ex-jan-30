@@ -9,64 +9,62 @@ import { retext } from "retext";
 import retextPos from "retext-pos";
 import retextKeywords from "retext-keywords";
 import { toString } from "nlcst-to-string";
-
-const KEYWORDS_DATA = "keywords_data";
-
-async function extractKeywords(text) {
-  let keywords = [];
-  let toProcess = await retext()
-    .use(retextPos)
-    .use(retextKeywords)
-    .process(text);
-
-  toProcess.data.keywords.forEach((kw) => {
-    keywords.push(toString(kw.matches[0].node));
-  });
-  return keywords;
-}
-
-function Posts({ data }) {
-  return (
-    <div className={styles.data_container}>
-      {data.map((elem, i) => (
-        <div key={i + "root-div"} className={styles.data_item}>
-          <p>{elem.text}</p>
-          <div>{elem.keywords}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
+import { setConstantValue } from "typescript";
 
 export default function Home() {
   const inputRef = useRef();
   const [data, setData] = useState([]);
 
-  // saves data to localstorage
+  const getKeywords = async (text) => {
+    let keywords = [];
+    let v1 = await retext().use(retextPos).use(retextKeywords).process(text);
+
+    v1.data.keywords.forEach((keyword) => {
+      keywords.push(toString(keyword.matches[0].node));
+    });
+
+    return keywords;
+  };
+
   useEffect(() => {
-    if (data.length !== 0) {
-      localStorage.setItem(KEYWORDS_DATA, JSON.stringify(data));
-    }
+    data.length !== 0
+      ? localStorage.setItem("keywordItems", JSON.stringify(data))
+      : null;
   }, [data]);
 
   useEffect(() => {
-    setData(JSON.parse(localStorage.getItem(KEYWORDS_DATA)) || []);
+    const localData = JSON.parse(localStorage.getItem("keywordItems"));
+
+    if (localData !== null) {
+      setData(localData);
+    }
   }, []);
 
-  const inputHandler = async (ev) => {
-    let v = inputRef.current.value;
-    let toSave = { text: v, keywords: [], timestamp: Date.now() };
-    toSave.keywords = await extractKeywords(v);
-    setData([toSave, ...data]);
+  const handleInput = async (e) => {
+    const keywords = await getKeywords(inputRef.current.value);
+    setData([
+      ...data,
+      {
+        text: inputRef.current.value,
+        keywords: keywords,
+        time: new Date(Date.now),
+      },
+    ]);
   };
-
   return (
-    <div className={styles.main}>
-      <div className={styles.main_content}>
-        <textarea placeholder="Input text here." ref={inputRef}></textarea>
-        <button onClick={inputHandler}>Save</button>
-        <Posts data={data}></Posts>
-      </div>
+    <div>
+      <textarea placeholder="input here" ref={inputRef}></textarea>
+      <button onClick={handleInput}>Get Keywords</button>
+      <Posts data={data}></Posts>
     </div>
   );
+}
+
+function Posts({ data }) {
+  return data.map((t) => (
+    <div>
+      <p>{t.text}</p>
+      <p>{t.keywords}</p>
+    </div>
+  ));
 }
